@@ -15,6 +15,7 @@ import multiprocessing
 import threading
 import socket
 import json
+import subprocess
 from collections import Counter
 
 # external modules
@@ -97,6 +98,7 @@ def parse_args():
     parser._optionals.title = "OPTIONS"
     parser.add_argument('-d', '--domain', help="Domain name to enumerate it's subdomains", required=True)
     parser.add_argument('-b', '--bruteforce', help='Enable the subbrute bruteforce module', nargs='?', default=False)
+    parser.add_argument('--valid', help='Check found subdomain for validity', default=False, action='store_true')
     parser.add_argument('-p', '--ports', help='Scan the found subdomains against specified tcp ports')
     parser.add_argument('-v', '--verbose', help='Enable Verbosity and display results in realtime', nargs='?', default=False)
     parser.add_argument('-t', '--threads', help='Number of threads to use for subbrute bruteforce', type=int, default=30)
@@ -881,7 +883,7 @@ class portscan():
             t.start()
 
 
-def main(domain, threads, savefile, ports, silent, verbose, enable_bruteforce, engines):
+def main(domain, threads, savefile, ports, silent, verbose, enable_bruteforce, engines, valid):
     bruteforce_list = set()
     search_list = set()
 
@@ -967,6 +969,13 @@ def main(domain, threads, savefile, ports, silent, verbose, enable_bruteforce, e
     if subdomains:
         subdomains = sorted(subdomains, key=subdomain_sorting_key)
 
+        if valid:
+            for subdom in subdomains:
+                result = subprocess.run(['host', subdom], capture_output=True)
+                
+                if "not found" in result.stdout.decode('utf-8'):
+                    subdomains.remove(subdom)
+
         if savefile:
             write_file(savefile, subdomains)
 
@@ -995,6 +1004,7 @@ def interactive():
     enable_bruteforce = args.bruteforce
     verbose = args.verbose
     engines = args.engines
+    valid = args.valid
     if verbose or verbose is None:
         verbose = True
     if args.no_color:
